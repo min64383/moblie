@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "938732930311",
+    "project_id": "puang-281ba",
+    "storage_bucket": "puang-281ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938732930311:android:c43b61fc75b8625ff0b1a2",
+        "android_client_info": {
+          "package_name": "com.example.mobile_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBE_bBeKSYPaIHGrs-R9US3pUhjMsY5u-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

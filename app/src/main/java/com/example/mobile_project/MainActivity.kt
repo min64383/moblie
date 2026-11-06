@@ -1,0 +1,1026 @@
+package com.example.mobile_project
+
+import android.os.Bundle
+import android.os.SystemClock
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
+
+class MainActivity : ComponentActivity() {
+    private val gameSession: GameSession by lazy {
+        ViewModelProvider(
+            this,
+            GameSession.Factory(applicationContext)
+        )[GameSession::class.java]
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        setContent {
+            MaterialTheme {
+                PooangApp(gameSession)
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        gameSession.saveNow()
+    }
+}
+
+@Composable
+private fun PooangApp(session: GameSession) {
+    var screen by session.screenState
+    var selectedIds by session.draftState
+    var weekSchedule by session.scheduleState
+    var game by session.gameState
+
+    var askNewGame by rememberSaveable { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    LaunchedEffect(session.message) {
+        if (session.message.isNotBlank()) {
+            Toast.makeText(
+                context.applicationContext,
+                session.message,
+                Toast.LENGTH_SHORT
+            ).show()
+
+            session.clearMessage()
+        }
+    }
+
+    if (!session.ready) {
+        Text(
+            text = "저장 데이터를 불러오는 중이에요...",
+            modifier = Modifier.padding(24.dp)
+        )
+        return
+    }
+
+    val availableSubjects = subjectsForSemester(game.semester)
+    val subjects = game.study.keys.mapNotNull { subjectForId(it) }
+    val scrollState = rememberScrollState()
+
+    LaunchedEffect(
+        screen,
+        game.semester,
+        game.week,
+        game.day,
+        game.exam?.index,
+        game.exam?.phase,
+        game.pendingEvent?.key,
+        game.pendingEvent?.phase,
+        game.life.pendingMorning?.key,
+        game.life.pendingMorning?.phase,
+        game.pendingMiniGame?.key,
+        game.pendingMiniGame?.phase,
+        game.pendingConfession?.key,
+        game.pendingConfession?.choice,
+        game.teamProject?.key,
+        game.teamProject?.announced
+    ) {
+        scrollState.scrollTo(0)
+    }
+
+    LaunchedEffect(game.semester, game.needsRegistration) {
+        if (game.needsRegistration) {
+            val allowed = subjectsForSemester(game.semester)
+                .map { it.id }
+                .toSet()
+
+            selectedIds = selectedIds
+                .filter { it in allowed }
+                .take(3)
+        }
+    }
+
+    fun prepareWeekSystems(): Boolean {
+        val team = TeamEngine.prepareWeek(game, weekSchedule)
+        val romance = LoveEngine.prepareWeek(team.game, team.schedule)
+        game = romance.game
+        weekSchedule = romance.schedule
+        if (game.pendingConfession != null) {
+            screen = "love"
+            return true
+        }
+        if (game.teamProject?.announced == false) {
+            screen = "team"
+            return true
+        }
+        return false
+    }
+
+    fun leaveTeamScreen() {
+        game.teamProject?.let { game = TeamEngine.acknowledge(game, it.key) }
+        screen = "main"
+    }
+
+    fun advanceOneDay() {
+        if (prepareWeekSystems()) return
+        game = DayFlowEngine.advanceDay(game, weekSchedule, subjects)
+        weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+        screen = when {
+            game.life.pendingMorning != null -> "morning"
+            game.pendingMiniGame != null -> "mini"
+            game.pendingEvent != null -> "event"
+            else -> "report"
+        }
+    }
+
+    // 최초 진입 시 월요일을 처리하고,
+    // 진행 중에는 기존 결과를 다시 연다.
+    fun showReport() {
+        if (game.needsRegistration) {
+            screen = "register"
+            return
+        }
+
+        if (subjects.size != 3) return
+
+        if (game.pendingConfession != null) {
+            screen = "love"
+            return
+        }
+        if (game.life.pendingMorning != null) {
+            screen = "morning"
+            return
+        }
+        if (game.pendingMiniGame != null) {
+            screen = "mini"
+            return
+        }
+        if (game.pendingEvent != null) {
+            screen = "event"
+            return
+        }
+
+        if (game.semesterResult != null) {
+            screen = "semester"
+            return
+        }
+
+        if (game.exam != null) {
+            screen = "exam"
+            return
+        }
+
+        if (weekSchedule.size != 28) {
+            weekSchedule = createWeekSchedule(
+                game.study.keys.toList()
+            )
+        }
+
+        if (game.day == 0) {
+            advanceOneDay()
+            return
+        }
+
+        screen = "report"
+    }
+
+    fun continueAfterWeek() {
+        if (game.day != 7) return
+        game = LifeEngine.settleWeek(game)
+
+        if (game.pendingConfession != null) {
+            screen = "love"
+            return
+        }
+        if (game.life.pendingMorning != null) {
+            screen = "morning"
+            return
+        }
+        if (game.pendingMiniGame != null) {
+            screen = "mini"
+            return
+        }
+        if (game.pendingEvent != null) {
+            screen = "event"
+            return
+        }
+
+        if (game.exam != null) {
+            screen = "exam"
+            return
+        }
+
+        val withEvent = EventEngine.startWeeklyEvent(game)
+        if (withEvent.pendingEvent != null) {
+            game = withEvent
+            screen = "event"
+            return
+        }
+
+        val pending = ExamEngine.pendingExam(game)
+
+        if (pending != null) {
+            game = ExamEngine.startPendingExam(game)
+            screen = "exam"
+        } else if (game.week >= 16) {
+            game = ExamEngine.finishSemester(game)
+            screen = "semester"
+        } else {
+            game = GameEngine.nextWeek(game)
+            screen = "main"
+        }
+    }
+
+    fun continueAfterExam() {
+        val run = game.exam ?: return
+
+        if (run.phase != ExamPhase.RESULT) return
+        game = LifeEngine.settleWeek(game)
+
+        if (run.kind == ExamKind.FINAL) {
+            game = ExamEngine.finishSemester(game)
+            screen = "semester"
+        } else if (game.week >= 16) {
+            // 이전 단계에서 시험이 누락된 임시 상태도 보완한다.
+            game = ExamEngine.startPendingExam(
+                game.copy(exam = null)
+            )
+            screen = "exam"
+        } else {
+            game = GameEngine.nextWeek(game)
+            screen = "main"
+        }
+    }
+
+    fun continueAfterSemester() {
+        if (game.semesterResult == null) return
+
+        screen = if (game.semester >= 8) {
+            "graduation"
+        } else {
+            "vacation"
+        }
+    }
+
+    fun advanceSemester() {
+        val next = AcademicEngine.advanceSemester(game)
+
+        if (next !== game) {
+            game = next
+            selectedIds = emptyList()
+            weekSchedule = emptyList()
+            screen = "register"
+        }
+    }
+
+    // 주간 진행 전 화면에 들어왔을 때 배정과 사건 추첨을 한 번만 준비한다.
+    LaunchedEffect(screen, game.semester, game.week, game.day) {
+        if (screen in setOf("main", "schedule", "routines", "love", "life") && game.day == 0) {
+            prepareWeekSystems()
+        }
+    }
+
+    BackHandler(enabled = screen != "title") {
+        if (screen == "account") {
+            if (!session.onlineBusy) {
+                session.cancelCloudPreview()
+                screen = if (session.hasGame) "main" else "title"
+            }
+            return@BackHandler
+        }
+        if (screen == "love" && game.pendingConfession != null) return@BackHandler
+        if (screen == "team") {
+            leaveTeamScreen()
+            return@BackHandler
+        }
+        screen = when (screen) {
+            "schedule",
+            "report",
+            "exam",
+            "semester",
+            "grades",
+            "vacation",
+            "graduation",
+            "event",
+            "love",
+            "mini",
+            "morning",
+            "life",
+            "routines" -> "main"
+
+            else -> "title"
+        }
+    }
+
+    if (askNewGame) {
+        AlertDialog(
+            onDismissRequest = {
+                askNewGame = false
+            },
+            title = {
+                Text("새로 입학할까요?")
+            },
+            text = {
+                Text(
+                    "기존 게임 진행 내용이 새 게임으로 바뀝니다. " +
+                            "저장한 루틴은 유지됩니다."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        askNewGame = false
+                        session.startNewGame()
+                    }
+                ) {
+                    Text("새로 시작")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        askNewGame = false
+                    }
+                ) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        containerColor = Color(0xFFFFF4E4)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Spacer(
+                modifier = Modifier.height(24.dp)
+            )
+
+            Text(
+                text = session.saveStatus,
+                fontSize = 12.sp,
+                color = Color(0xFF8A6A48)
+            )
+
+            when (screen) {
+                "account" -> {
+                    AccountScreen(session = session, onBack = {
+                        session.cancelCloudPreview()
+                        screen = if (session.hasGame) "main" else "title"
+                    })
+                }
+
+                "title" -> {
+                    Text(
+                        text = "푸앙이\n대학생활",
+                        fontSize = 36.sp,
+                        lineHeight = 44.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center,
+                        color = Color(0xFF5A3A1E)
+                    )
+
+                    Text(
+                        text = "입학부터 졸업까지, 4년을 설계하세요",
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        color = Color(0xFF8A6A48)
+                    )
+
+                    Text(
+                        text = "4년 · 8학기 · 128주",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFB5651D)
+                    )
+
+                    Text(
+                        text = "수업과 공부, 알바와 휴식을 조절하며\n" +
+                                "푸앙이의 대학생활을 설계해 보세요.",
+                        textAlign = TextAlign.Center,
+                        fontSize = 15.sp,
+                        lineHeight = 24.sp
+                    )
+
+                    if (session.hasGame) {
+                        OutlinedButton(
+                            onClick = {
+                                session.resumeGame()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("계속하기")
+                        }
+                    }
+
+                    OutlinedButton(onClick = { screen = "account" }, modifier = Modifier.fillMaxWidth()) {
+                        Text("계정 · 클라우드 저장")
+                    }
+
+                    session.loadError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+
+                        OutlinedButton(
+                            onClick = {
+                                session.retryLoad()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("저장 데이터 다시 불러오기")
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (
+                                session.hasGame ||
+                                session.loadError != null
+                            ) {
+                                askNewGame = true
+                            } else {
+                                session.startNewGame()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF9431),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "입학하기",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                "register" -> {
+                    CourseRegistrationScreen(
+                        selectedIds = selectedIds,
+                        subjects = availableSubjects,
+                        semester = game.semester,
+                        scholarship = game.registrationScholarship,
+                        onToggle = { id ->
+                            selectedIds = when {
+                                id in selectedIds -> {
+                                    selectedIds - id
+                                }
+
+                                selectedIds.size < 3 -> {
+                                    selectedIds + id
+                                }
+
+                                else -> selectedIds
+                            }
+                        },
+                        onConfirm = {
+                            val next = AcademicEngine.registerSubjects(
+                                game,
+                                selectedIds
+                            )
+
+                            if (next !== game) {
+                                game = next
+
+                                weekSchedule = createWeekSchedule(
+                                    next.study.keys.toList()
+                                )
+
+                                if (!prepareWeekSystems()) screen = "main"
+                            }
+                        },
+                        onBack = {
+                            screen = "title"
+                        }
+                    )
+                }
+
+                "main" -> {
+                    Text(
+                        text = "${semesterLabel(game.semester)} · " +
+                                "${game.week}주차",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5A3A1E)
+                    )
+
+                    GameStatusPanel(
+                        game,
+                        subjects
+                    )
+
+                    OutlinedButton(
+                        onClick = { screen = "team" },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("조별과제 · 진행 및 제출 기록")
+                    }
+
+                    OutlinedButton(onClick = { screen = "love" }, modifier = Modifier.fillMaxWidth()) {
+                        Text("연애 · 상태 및 기록")
+                    }
+
+                    OutlinedButton(
+                        onClick = { game = game.copy(skipMiniGames = !game.skipMiniGames) },
+                        enabled = game.pendingMiniGame == null && game.life.pendingMorning == null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (game.skipMiniGames) "미니게임: 꺼짐" else "미니게임: 켜짐")
+                    }
+
+                    if (game.skipMiniGames) Text("늦잠은 성공 확률 50%로 자동 판정해요.", fontSize = 13.sp)
+
+                    OutlinedButton(onClick = { screen = "life" }, modifier = Modifier.fillMaxWidth()) {
+                        Text("생활 · 건강과 주간 복권")
+                    }
+
+                    OutlinedButton(onClick = { screen = "account" }, modifier = Modifier.fillMaxWidth()) {
+                        Text("계정 · 클라우드 저장")
+                    }
+
+                    if (game.semesterResult != null) {
+                        Text(
+                            "이번 학기가 끝났어요. 학기 성적을 확인해 보세요."
+                        )
+                    } else if (game.day in 1..6) {
+                        Text(
+                            "${GameEngine.dayNames[game.day - 1]}" +
+                                    "까지 진행했어요."
+                        )
+                    } else if (game.day == 7) {
+                        Text(
+                            "이번 주가 끝났어요. 진행 결과를 확인해 주세요."
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (game.day == 0 && game.pendingEvent == null && game.pendingConfession == null && game.pendingMiniGame == null && game.miniBonus == null &&
+                                    game.life.pendingMorning == null && game.life.morningNotice == null) {
+                                if (weekSchedule.size != 28) {
+                                    weekSchedule = createWeekSchedule(
+                                        game.study.keys.toList()
+                                    )
+                                }
+
+                                if (!prepareWeekSystems()) screen = "schedule"
+                            }
+                        },
+                        enabled = game.day == 0 && game.pendingEvent == null && game.pendingConfession == null && game.pendingMiniGame == null && game.miniBonus == null &&
+                                    game.life.pendingMorning == null && game.life.morningNotice == null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("주간 시간표")
+                    }
+
+                    Button(
+                        onClick = {
+                            showReport()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            when {
+                                game.pendingConfession != null -> {
+                                    "고백 이벤트 이어하기"
+                                }
+
+                                game.life.pendingMorning?.phase == MorningPhase.RESULT -> "늦잠 결과 보기"
+                                game.life.pendingMorning != null -> "늦잠 달리기 이어하기"
+
+                                game.pendingMiniGame?.phase == MiniPhase.RESULT -> "미니게임 결과 보기"
+                                game.pendingMiniGame != null -> "미니게임 이어하기"
+
+                                game.pendingEvent?.phase == EventPhase.RESULT -> {
+                                    "이벤트 결과 보기"
+                                }
+
+                                game.pendingEvent != null -> {
+                                    "이벤트 이어하기"
+                                }
+
+                                game.semesterResult != null -> {
+                                    "학기 성적 보기"
+                                }
+
+                                game.exam?.phase == ExamPhase.RESULT -> {
+                                    "시험 결과 보기"
+                                }
+
+                                game.exam != null -> {
+                                    "시험 이어하기"
+                                }
+
+                                game.day == 0 -> {
+                                    "시간 보내기"
+                                }
+
+                                else -> {
+                                    "진행 결과 보기"
+                                }
+                            }
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            screen = "grades"
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("성적 기록")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            screen = "routines"
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("루틴 관리")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            session.saveNow()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("지금 저장")
+                    }
+                }
+
+                "schedule" -> {
+                    if (
+                        game.day == 0 &&
+                        game.pendingEvent == null &&
+                        game.pendingConfession == null &&
+                        game.pendingMiniGame == null && game.miniBonus == null &&
+                        game.life.pendingMorning == null && game.life.morningNotice == null &&
+                        weekSchedule.size == 28
+                    ) {
+                        WeeklyScheduleScreen(
+                            subjects = subjects,
+                            schedule = weekSchedule,
+                            game = game,
+                            onPaint = { index, choice ->
+                                if (
+                                    game.day == 0 &&
+                                    game.pendingEvent == null &&
+                                    game.pendingConfession == null &&
+                                    game.pendingMiniGame == null && game.miniBonus == null &&
+                                    game.life.pendingMorning == null && game.life.morningNotice == null &&
+                                    !weekSchedule[index].locked &&
+                                    AcademicEngine.canUseActivity(
+                                        game,
+                                        choice.activity
+                                    )
+                                ) {
+                                    weekSchedule = weekSchedule.mapIndexed {
+                                            i, slot ->
+                                        if (i == index) {
+                                            choice
+                                        } else {
+                                            slot
+                                        }
+                                    }
+                                }
+                            },
+                            onClear = {
+                                if (game.day == 0 && game.pendingEvent == null && game.pendingConfession == null && game.pendingMiniGame == null && game.miniBonus == null &&
+                                    game.life.pendingMorning == null && game.life.morningNotice == null) {
+                                    weekSchedule = weekSchedule.map { slot ->
+                                        if (slot.locked) {
+                                            slot
+                                        } else {
+                                            TimeSlot()
+                                        }
+                                    }
+                                }
+                            },
+                            onBack = {
+                                screen = "main"
+                            },
+                            onStartWeek = {
+                                showReport()
+                            },
+                            onRoutines = {
+                                screen = "routines"
+                            }
+                        )
+                    } else {
+                        Button(
+                            onClick = {
+                                screen = "main"
+                            }
+                        ) {
+                            Text("홈으로")
+                        }
+                    }
+                }
+
+                "report" -> {
+                    DayReportScreen(
+                        game = game,
+                        subjects = subjects,
+                        onNextDay = {
+                            if (game.day < 7) {
+                                advanceOneDay()
+                            }
+                        },
+                        onNextWeek = {
+                            continueAfterWeek()
+                        },
+                        onHome = {
+                            screen = "main"
+                        },
+                        continueLabel = ExamEngine.pendingExam(game)?.let {
+                            "${it.title} 보러가기"
+                        } ?: if (game.week >= 16) {
+                            "학기 결산 보기"
+                        } else {
+                            "다음 주로"
+                        }
+                    )
+                }
+
+                "morning" -> {
+                    MorningScreen(
+                        game = game,
+                        onBegin = { key -> game = LifeEngine.beginMorning(game, key, System.currentTimeMillis()) },
+                        onTap = { key, taps -> game = LifeEngine.tapMorning(game, key, taps, System.currentTimeMillis()) },
+                        onRefresh = { key, now ->
+                            if (game.life.pendingMorning?.key == key) game = LifeEngine.refreshMorning(game, now)
+                        },
+                        onSkip = { key -> game = LifeEngine.skipMorning(game, key, System.currentTimeMillis()) },
+                        onContinue = { key ->
+                            val next = LifeEngine.continueMorning(game, weekSchedule, subjects, key)
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                screen = when {
+                                    game.life.pendingMorning != null -> "morning"
+                                    game.pendingMiniGame != null -> "mini"
+                                    game.pendingEvent != null -> "event"
+                                    else -> "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+
+                "life" -> {
+                    LifeScreen(
+                        game = game,
+                        onBuy = { semester, week -> game = LifeEngine.buyLottery(game, semester, week) },
+                        onBack = { screen = "main" }
+                    )
+                }
+
+                "mini" -> {
+                    MiniGameScreen(
+                        game = game,
+                        onBegin = { key -> game = MiniGameEngine.begin(game, key, System.currentTimeMillis()) },
+                        onRefresh = { key, now ->
+                            if (game.pendingMiniGame?.key == key) game = MiniGameEngine.refresh(game, now)
+                        },
+                        onInput = { key, value, revision ->
+                            game = MiniGameEngine.input(game, key, value, revision, System.currentTimeMillis())
+                        },
+                        onSubmit = { key -> game = MiniGameEngine.submitOrders(game, key, System.currentTimeMillis()) },
+                        onSkip = { key -> game = MiniGameEngine.skipOrForfeit(game, key, System.currentTimeMillis()) },
+                        onContinue = { key ->
+                            val next = DayFlowEngine.continueMini(game, weekSchedule, subjects, key)
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                screen = when {
+                                    game.life.pendingMorning != null -> "morning"
+                                    game.pendingMiniGame != null -> "mini"
+                                    game.pendingEvent != null -> "event"
+                                    else -> "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+
+                "love" -> {
+                    LoveScreen(
+                        game = game,
+                        schedule = weekSchedule,
+                        onChoose = { key, accept ->
+                            val chosen = LoveEngine.chooseConfession(game, weekSchedule, key, accept)
+                            game = chosen.game
+                            weekSchedule = chosen.schedule
+                        },
+                        onContinue = { key ->
+                            val next = LoveEngine.completeConfession(game, key)
+                            if (next !== game) {
+                                game = next
+                                screen = "main"
+                            }
+                        },
+                        onBack = { screen = "main" }
+                    )
+                }
+
+                "team" -> {
+                    TeamScreen(
+                        game = game,
+                        onConfirm = { key ->
+                            game = TeamEngine.acknowledge(game, key)
+                            screen = "schedule"
+                        },
+                        onBack = { leaveTeamScreen() }
+                    )
+                }
+
+                "event" -> {
+                    EventScreen(
+                        game = game,
+                        subjects = subjects,
+                        onChoose = { key, index ->
+                            game = EventEngine.choose(game, key, index)
+                            weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                        },
+                        onContinue = { key ->
+                            val run = game.pendingEvent
+                            val next = EventEngine.continueEvent(
+                                game, weekSchedule, subjects, key
+                            )
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                if (run?.day == 7) {
+                                    continueAfterWeek()
+                                } else {
+                                    screen = "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+
+                "exam" -> {
+                    ExamScreen(
+                        game = game,
+                        subjects = subjects,
+                        onBegin = {
+                            game = ExamEngine.beginExam(
+                                game,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onAnswer = { answer, index ->
+                            game = ExamEngine.answerQuestion(
+                                game,
+                                answer,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onTimeout = { index ->
+                            game = ExamEngine.answerQuestion(
+                                game,
+                                -1,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onNext = { index ->
+                            game = ExamEngine.nextQuestion(
+                                game,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onContinue = {
+                            continueAfterExam()
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
+
+                "semester" -> {
+                    game.semesterResult?.let {
+                        SemesterSummaryScreen(
+                            game,
+                            subjects,
+                            onContinue = {
+                                continueAfterSemester()
+                            },
+                            onHome = {
+                                screen = "main"
+                            }
+                        )
+                    }
+                }
+
+                "grades" -> {
+                    GradeRecordScreen(
+                        game,
+                        subjects,
+                        onBack = {
+                            screen = "main"
+                        }
+                    )
+                }
+
+                "routines" -> {
+                    RoutineScreen(
+                        session = session,
+                        onBack = {
+                            screen = "main"
+                        }
+                    )
+                }
+
+                "vacation" -> {
+                    VacationScreen(
+                        game,
+                        subjects,
+                        onChoose = { id ->
+                            game = AcademicEngine.applyVacation(
+                                game,
+                                id
+                            )
+                        },
+                        onAdvance = {
+                            advanceSemester()
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
+
+                "graduation" -> {
+                    GraduationScreen(
+                        game,
+                        onTitle = {
+                            screen = "title"
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
