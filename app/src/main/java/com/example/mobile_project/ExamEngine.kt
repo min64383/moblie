@@ -33,9 +33,14 @@ data class SubjectGrade(
     val point: Double
 )
 
-data class SemesterResult(val semester: Int, val grades: List<SubjectGrade>) {
+data class SemesterResult(
+    val semester: Int,
+    val grades: List<SubjectGrade>,
+    val gpaAdjustment: Double = 0.0
+) {
     val gpa: Double
-        get() = if (grades.isEmpty()) 0.0 else grades.map { it.point }.average()
+        get() = if (grades.isEmpty()) 0.0 else
+            (grades.map { it.point }.average() + gpaAdjustment).coerceIn(0.0, 4.5)
     val scholarship: Int
         get() = when {
             gpa >= 4.0 -> 600_000
@@ -156,27 +161,28 @@ object ExamEngine {
 
     private fun finishExam(state: GameState): GameState {
         val run = state.exam ?: return state
-        val scores = state.study.mapValues { (_, study) ->
-            scoreFor(study, run.correct, run.questionIds.size, state.semester)
+        val scores = state.study.mapValues { (id, study) ->
+            scoreFor(study, run.correct, run.questionIds.size, state.semester, state.life.lateCounts[id] ?: 0)
         }
         val finished = run.copy(phase = ExamPhase.RESULT, deadlineMs = 0L)
         return if (run.kind == ExamKind.MIDTERM) {
             state.copy(
                 midtermScores = scores,
                 study = state.study.mapValues { 0 },
-                exam = finished
+                exam = finished,
+                life = state.life.copy(lateCounts = emptyMap())
             )
         } else {
-            state.copy(finalScores = scores, exam = finished)
+            state.copy(finalScores = scores, exam = finished, life = state.life.copy(lateCounts = emptyMap()))
         }
     }
 
     fun examFactor(semester: Int): Double = 0.26 - ((semester - 1) / 2) * 0.02
 
-    fun scoreFor(study: Int, correct: Int, total: Int, semester: Int = 1): Int {
-        require(total > 0 && correct in 0..total)
+    fun scoreFor(study: Int, correct: Int, total: Int, semester: Int = 1, lateCount: Int = 0): Int {
+        require(total > 0 && correct in 0..total && lateCount >= 0)
         val base = (study * examFactor(semester)).coerceIn(0.0, 100.0)
-        return (base * (0.85 + correct.toDouble() / total * 0.30))
+        return (base * (0.85 + correct.toDouble() / total * 0.30) - lateCount * LifeEngine.LATE_PENALTY)
             .roundToInt().coerceIn(0, 100)
     }
 
@@ -200,11 +206,12 @@ object ExamEngine {
         if (ids.isEmpty() || !state.midtermScores.keys.containsAll(ids) ||
             !state.finalScores.keys.containsAll(ids)) return state
         val grades = ids.map { id ->
-            val combined = ((state.midtermScores.getValue(id) + state.finalScores.getValue(id)) / 2.0)
+            val combined = ((state.midtermScores.getValue(id) + state.finalScores.getValue(id)) / 2.0 +
+                (state.teamBonuses[id] ?: 0))
                 .roundToInt().coerceIn(0, 100)
             gradeFor(id, combined)
         }
-        val result = SemesterResult(state.semester, grades)
+        val result = SemesterResult(state.semester, grades, state.semesterGpaAdjustment)
         return state.copy(
             semesterResult = result,
             transcript = state.completedSemesters.filterNot { it.semester == state.semester } + result,

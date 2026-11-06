@@ -23,7 +23,24 @@ data class GameState(
     val transcript: List<SemesterResult> = emptyList(),
     val vacationHistory: List<VacationRecord> = emptyList(),
     val needsRegistration: Boolean = false,
-    val registrationScholarship: Int = 0
+    val registrationScholarship: Int = 0,
+    val pendingEvent: CampusEventRun? = null,
+    val eventHistory: List<CampusEventRecord> = emptyList(),
+    val eventBuffs: List<EventBuff> = emptyList(),
+    val eventCheckedDay: Int = -1,
+    val teamProject: TeamProject? = null,
+    val teamResults: List<TeamProjectResult> = emptyList(),
+    val teamBonuses: Map<String, Int> = emptyMap(),
+    val semesterGpaAdjustment: Double = 0.0,
+    val pendingConfession: LoveConfession? = null,
+    val love: LoveRelationship? = null,
+    val loveHistory: List<LoveRecord> = emptyList(),
+    val loveCheckedSemesters: List<Int> = emptyList(),
+    val pendingMiniGame: MiniGameRun? = null,
+    val miniBonus: MiniGameBonus? = null,
+    val miniCheckedDay: Int = -1,
+    val skipMiniGames: Boolean = false,
+    val life: LifeState = LifeState()
 ) {
     val completedSemesters: List<SemesterResult>
         get() {
@@ -34,22 +51,26 @@ data class GameState(
 
     val cumulativeGpa: Double
         get() {
-            val grades = completedSemesters.flatMap { it.grades }
-            return if (grades.isEmpty()) 0.0 else grades.map { it.point }.average()
+            val records = completedSemesters
+            val count = records.sumOf { it.grades.size }
+            return if (count == 0) 0.0 else records.sumOf { it.gpa * it.grades.size } / count
         }
 }
 
 private fun packTranscript(records: List<SemesterResult>): ArrayList<String> =
     ArrayList(records.flatMap { record -> record.grades.map { grade ->
-        "${record.semester}|${grade.subjectId}|${grade.score}|${grade.letter}|${grade.point}"
+        "${record.semester}|${grade.subjectId}|${grade.score}|${grade.letter}|${grade.point}|${record.gpaAdjustment}"
     } })
 
 private fun unpackTranscript(value: Any?): List<SemesterResult> =
     (value as? List<*>).orEmpty().map { entry ->
-        val parts = (entry as String).split('|')
-        parts[0].toInt() to SubjectGrade(parts[1], parts[2].toInt(), parts[3], parts[4].toDouble())
-    }.groupBy({ it.first }, { it.second })
-        .map { (semester, grades) -> SemesterResult(semester, grades) }
+        (entry as String).split('|')
+    }.groupBy { it[0].toInt() }
+        .map { (semester, rows) -> SemesterResult(
+            semester,
+            rows.map { SubjectGrade(it[1], it[2].toInt(), it[3], it[4].toDouble()) },
+            rows.first().getOrNull(5)?.toDouble() ?: 0.0
+        ) }
         .sortedBy { it.semester }
 
 private fun packIntMap(values: Map<String, Int>): ArrayList<String> =
@@ -61,8 +82,7 @@ private fun unpackIntMap(value: Any?): Map<String, Int> =
         parts[0] to parts[1].toInt()
     }
 
-// 화면 회전과 시스템에 의한 화면 재생성에 필요한 임시 상태 저장.
-// 앱을 완전히 종료한 뒤의 게임 저장은 이후 로컬 저장 기능에서 처리한다.
+// 기존 임시 상태와 자동 저장이 함께 사용하는 저장 형식. 새 필드는 기본값으로 복원한다.
 val gameStateSaver = mapSaver<GameState>(
     save = { state ->
         val exam = state.exam
@@ -82,6 +102,25 @@ val gameStateSaver = mapSaver<GameState>(
             "vacations" to ArrayList(state.vacationHistory.map { "${it.semester}:${it.activityId}" }),
             "needsRegistration" to state.needsRegistration,
             "registrationScholarship" to state.registrationScholarship,
+            "campusEvent" to EventStateCodec.packRun(state.pendingEvent),
+            "eventChanges" to ArrayList(state.pendingEvent?.changes.orEmpty()),
+            "eventHistory" to EventStateCodec.packHistory(state.eventHistory),
+            "eventBuffs" to EventStateCodec.packBuffs(state.eventBuffs),
+            "eventCheckedDay" to state.eventCheckedDay,
+            "teamProject" to TeamStateCodec.packProject(state.teamProject),
+            "teamIncidents" to TeamStateCodec.packIncidents(state.teamProject),
+            "teamResults" to TeamStateCodec.packResults(state.teamResults),
+            "teamBonuses" to packIntMap(state.teamBonuses),
+            "semesterGpaAdjustment" to state.semesterGpaAdjustment,
+            "loveConfession" to LoveStateCodec.packConfession(state.pendingConfession),
+            "loveRelationship" to LoveStateCodec.packRelationship(state.love),
+            "loveHistory" to LoveStateCodec.packHistory(state.loveHistory),
+            "loveCheckedSemesters" to ArrayList(state.loveCheckedSemesters),
+            "miniRun" to MiniStateCodec.packRun(state.pendingMiniGame),
+            "miniBonus" to MiniStateCodec.packBonus(state.miniBonus),
+            "miniCheckedDay" to state.miniCheckedDay,
+            "skipMiniGames" to state.skipMiniGames,
+            "life" to LifeStateCodec.pack(state.life),
             "study" to packIntMap(state.study),
             "log" to ArrayList(state.log),
             "midterm" to packIntMap(state.midtermScores),
@@ -98,6 +137,7 @@ val gameStateSaver = mapSaver<GameState>(
             "examAnswer" to (exam?.selectedAnswer ?: -1),
             "examDeadline" to (exam?.deadlineMs ?: 0L),
             "resultSemester" to (result?.semester ?: 0),
+            "resultGpaAdjustment" to (result?.gpaAdjustment ?: 0.0),
             "resultGrades" to ArrayList(result?.grades.orEmpty().map {
                 "${it.subjectId}:${it.score}:${it.letter}:${it.point}"
             })
@@ -123,6 +163,7 @@ val gameStateSaver = mapSaver<GameState>(
         val resultSemester = saved["resultSemester"] as? Int ?: 0
         val result = if (resultSemester == 0) null else SemesterResult(
             semester = resultSemester,
+            gpaAdjustment = saved["resultGpaAdjustment"] as? Double ?: 0.0,
             grades = (saved["resultGrades"] as List<*>).map { entry ->
                 val parts = (entry as String).split(':')
                 SubjectGrade(parts[0], parts[1].toInt(), parts[2], parts[3].toDouble())
@@ -147,6 +188,23 @@ val gameStateSaver = mapSaver<GameState>(
             },
             needsRegistration = saved["needsRegistration"] as? Boolean ?: study.isEmpty(),
             registrationScholarship = saved["registrationScholarship"] as? Int ?: 0,
+            pendingEvent = EventStateCodec.unpackRun(saved["campusEvent"], saved["eventChanges"]),
+            eventHistory = EventStateCodec.unpackHistory(saved["eventHistory"]),
+            eventBuffs = EventStateCodec.unpackBuffs(saved["eventBuffs"]),
+            eventCheckedDay = saved["eventCheckedDay"] as? Int ?: -1,
+            teamProject = TeamStateCodec.unpackProject(saved["teamProject"], saved["teamIncidents"]),
+            teamResults = TeamStateCodec.unpackResults(saved["teamResults"]),
+            teamBonuses = unpackIntMap(saved["teamBonuses"]),
+            semesterGpaAdjustment = saved["semesterGpaAdjustment"] as? Double ?: 0.0,
+            pendingConfession = LoveStateCodec.unpackConfession(saved["loveConfession"]),
+            love = LoveStateCodec.unpackRelationship(saved["loveRelationship"]),
+            loveHistory = LoveStateCodec.unpackHistory(saved["loveHistory"]),
+            loveCheckedSemesters = (saved["loveCheckedSemesters"] as? List<*>).orEmpty().map { it as Int },
+            pendingMiniGame = MiniStateCodec.unpackRun(saved["miniRun"]),
+            miniBonus = MiniStateCodec.unpackBonus(saved["miniBonus"]),
+            miniCheckedDay = saved["miniCheckedDay"] as? Int ?: -1,
+            skipMiniGames = saved["skipMiniGames"] as? Boolean ?: false,
+            life = LifeStateCodec.unpack(saved["life"]),
             study = study,
             log = (saved["log"] as List<*>).map { it as String },
             midtermScores = unpackIntMap(saved["midterm"]),

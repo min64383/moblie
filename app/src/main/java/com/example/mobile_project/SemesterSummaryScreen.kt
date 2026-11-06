@@ -40,9 +40,14 @@ fun SemesterSummaryScreen(
             fontWeight = FontWeight.Bold
         )
         Text(String.format(Locale.KOREA, "누적 평점 %.2f / 4.50", game.cumulativeGpa))
+        if (result.gpaAdjustment != 0.0) {
+            Text(String.format(Locale.KOREA, "이벤트 평점 보정 %+.2f 포함", result.gpaAdjustment))
+        }
         result.grades.forEach { grade ->
             val name = subjects.find { it.id == grade.subjectId }?.name ?: grade.subjectId
             Text("$name: ${grade.score}점 · ${grade.letter}", fontSize = 18.sp)
+            val bonus = game.teamBonuses[grade.subjectId] ?: 0
+            if (bonus > 0) Text("조별과제 가산점 +${bonus}점 포함", fontSize = 13.sp)
         }
         if (result.scholarship > 0 && game.semester < 8) {
             val amount = NumberFormat.getIntegerInstance(Locale.KOREA).format(result.scholarship)
@@ -74,11 +79,18 @@ fun GradeRecordScreen(game: GameState, subjects: List<Subject>, onBack: () -> Un
             val midterm = game.midtermScores[subject.id]?.let { "${it}점" } ?: "미응시"
             val finalScore = game.finalScores[subject.id]?.let { "${it}점" } ?: "미응시"
             Text("${subject.name}\n중간: $midterm · 기말: $finalScore", lineHeight = 24.sp)
+            val bonus = game.teamBonuses[subject.id] ?: 0
+            if (bonus > 0) Text("조별과제 가산점 +${bonus}점" +
+                if (game.semesterResult == null) " 예정" else " 반영", fontSize = 13.sp)
         }
         if (game.completedSemesters.isNotEmpty()) {
             Text(String.format(Locale.KOREA, "누적 평점 %.2f", game.cumulativeGpa), fontWeight = FontWeight.Bold)
         }
         game.completedSemesters.forEach { record ->
+            if (record.gpaAdjustment != 0.0) {
+                Text(String.format(Locale.KOREA, "%s 이벤트 평점 보정 %+.2f",
+                    semesterLabel(record.semester), record.gpaAdjustment), fontSize = 13.sp)
+            }
             Text(String.format(Locale.KOREA, "%s 평점 %.2f", semesterLabel(record.semester), record.gpa),
                 fontWeight = FontWeight.Bold)
             record.grades.forEach { grade ->

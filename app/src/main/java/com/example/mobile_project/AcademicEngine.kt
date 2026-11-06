@@ -50,7 +50,8 @@ object AcademicEngine {
         state.money - option.cost - VACATION_EXPENSE >= -50_000
 
     fun applyVacation(state: GameState, optionId: String): GameState {
-        if (state.semester >= 8 || state.needsRegistration ||
+        if (state.semester >= 8 || state.needsRegistration || state.pendingEvent != null ||
+            state.pendingConfession != null || state.pendingMiniGame != null || state.life.pendingMorning != null ||
             state.semesterResult?.semester != state.semester || currentVacation(state) != null) return state
         val option = vacationOptions(state.semester).find { it.id == optionId } ?: return state
         if (!canAffordVacation(state, option)) return state
@@ -66,7 +67,8 @@ object AcademicEngine {
 
     fun advanceSemester(state: GameState): GameState {
         val result = state.semesterResult ?: return state
-        if (state.semester >= 8 || state.needsRegistration ||
+        if (state.semester >= 8 || state.needsRegistration || state.pendingEvent != null ||
+            state.pendingConfession != null || state.pendingMiniGame != null || state.life.pendingMorning != null ||
             result.semester != state.semester || currentVacation(state) == null) return state
         return state.copy(
             semester = state.semester + 1,
@@ -81,12 +83,22 @@ object AcademicEngine {
             semesterResult = null,
             transcript = state.completedSemesters,
             needsRegistration = true,
-            registrationScholarship = result.scholarship
+            registrationScholarship = result.scholarship,
+            pendingEvent = null,
+            eventBuffs = emptyList(),
+            eventCheckedDay = -1,
+            teamProject = null,
+            teamBonuses = emptyMap(),
+            semesterGpaAdjustment = 0.0,
+            pendingMiniGame = null, miniBonus = null, miniCheckedDay = -1,
+            life = state.life.copy(pendingMorning = null, morningNotice = null, morningCheckedDay = -1,
+                lateCounts = emptyMap(), sickWeek = -1)
         )
     }
 
     fun registerSubjects(state: GameState, subjectIds: List<String>): GameState {
-        if (!state.needsRegistration || subjectIds.size != 3 || subjectIds.distinct().size != 3) return state
+        if (!state.needsRegistration || state.pendingConfession != null || state.life.pendingMorning != null ||
+            subjectIds.size != 3 || subjectIds.distinct().size != 3) return state
         val allowed = subjectsForSemester(state.semester).map { it.id }.toSet()
         if (!allowed.containsAll(subjectIds)) return state
         return state.copy(
@@ -99,13 +111,24 @@ object AcademicEngine {
             exam = null,
             semesterResult = null,
             needsRegistration = false,
-            registrationScholarship = 0
+            registrationScholarship = 0,
+            pendingEvent = null,
+            eventBuffs = emptyList(),
+            eventCheckedDay = -1,
+            teamProject = null,
+            teamBonuses = emptyMap(),
+            semesterGpaAdjustment = 0.0,
+            pendingMiniGame = null, miniBonus = null, miniCheckedDay = -1,
+            life = state.life.copy(pendingMorning = null, morningNotice = null, morningCheckedDay = -1,
+                lateCounts = emptyMap(), sickWeek = -1)
         )
     }
 
     fun canUseActivity(state: GameState, activity: ActivityType): Boolean = when (activity) {
         ActivityType.CAREER -> state.semester >= 5
         ActivityType.TUTOR -> state.completedSemesters.isNotEmpty() && state.cumulativeGpa >= 3.0
+        ActivityType.TEAM -> state.teamProject != null
+        ActivityType.DATE -> state.love != null
         else -> true
     }
 

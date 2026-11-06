@@ -78,6 +78,10 @@ fun ExamScreen(
                 }
                 Text("보기 ${run.optionCount}개 · 문항당 ${run.secondsPerQuestion}초 · 총 ${run.questionIds.size}문항")
                 Text("공부량을 바탕으로 정답률에 따라 점수가 0.85~1.15배 조정돼요.")
+                game.life.lateCounts.filterValues { it > 0 }.forEach { (id, count) ->
+                    Text("${subjectForId(id)?.name ?: id}: 지각 ${count}회 · 점수 계산에서 -${count * LifeEngine.LATE_PENALTY}점",
+                        color = Color(0xFFC0504D))
+                }
                 Button(onClick = onBegin, modifier = Modifier.fillMaxWidth()) {
                     Text("시험 시작")
                 }
@@ -135,6 +139,7 @@ fun ExamScreen(
                 }
                 val average = if (scores.isEmpty()) 0 else scores.values.average().roundToInt()
                 Text("평균 ${average}점", fontWeight = FontWeight.Bold)
+                Text("과목별 지각 감점을 반영한 점수예요. 이번 시험 범위의 지각 횟수는 초기화됐어요.", fontSize = 13.sp)
                 if (run.kind == ExamKind.MIDTERM) {
                     Text("중간고사 범위의 공부량은 초기화됐어요. 기말고사를 위해 다시 쌓아 주세요.")
                 }

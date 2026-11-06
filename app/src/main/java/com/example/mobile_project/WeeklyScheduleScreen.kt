@@ -40,7 +40,8 @@ fun WeeklyScheduleScreen(
     onPaint: (Int, TimeSlot) -> Unit,
     onClear: () -> Unit,
     onBack: () -> Unit,
-    onStartWeek: () -> Unit
+    onStartWeek: () -> Unit,
+    onRoutines: () -> Unit
 ) {
     val days = listOf("월", "화", "수", "목", "금", "토", "일")
     val blocks = listOf("오전", "오후", "저녁", "밤")
@@ -71,7 +72,7 @@ fun WeeklyScheduleScreen(
         )
         Text(
             "아래에서 활동을 고른 뒤 시간표 칸을 누르세요.\n" +
-                "수업은 고정입니다. 표는 좌우로 밀어 볼 수 있어요.",
+                "수업·조모임·데이트는 고정입니다. 표는 좌우로 밀어 볼 수 있어요.",
             fontSize = 13.sp
         )
 
@@ -183,6 +184,10 @@ fun WeeklyScheduleScreen(
         )
         Button(onClick = onStartWeek, modifier = Modifier.fillMaxWidth()) {
             Text("시간 보내기")
+        }
+
+        OutlinedButton(onClick = onRoutines, modifier = Modifier.fillMaxWidth()) {
+            Text("루틴 저장·불러오기")
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

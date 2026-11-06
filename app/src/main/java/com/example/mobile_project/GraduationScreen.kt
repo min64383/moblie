@@ -24,6 +24,7 @@ fun GraduationScreen(game: GameState, onTitle: () -> Unit, onHome: () -> Unit) {
         Text("이수 학기 ${game.completedSemesters.size}/8")
         Text(String.format(Locale.KOREA, "누적 평점 %.2f / 4.50", game.cumulativeGpa))
         Text("스펙 ${game.spec} · 인맥 ${game.network} · 최종 잔액 ${game.money}원")
+        game.love?.let { love -> Text("${love.partner}와 ${love.weeksTogether}주째 연애 중이에요.") }
         Text("학기별 평점", fontWeight = FontWeight.Bold)
         game.completedSemesters.forEach { record ->
             Text(String.format(Locale.KOREA, "%s: %.2f", semesterLabel(record.semester), record.gpa))

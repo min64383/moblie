@@ -26,6 +26,30 @@ fun GameStatusPanel(game: GameState, subjects: List<Subject>) {
         Text("체력 ${game.hp}/${game.maxHp} · 행복도 ${game.happiness}/100")
         Text("돈 ${moneyText}원 · 인맥 ${game.network} · 매력 ${game.charm}")
         Text("스펙 ${game.spec}/100")
+        if (LifeEngine.isSick(game)) {
+            Text("감기몸살 · 이번 주 공부 효율 60%", color = Color(0xFFC0504D), fontSize = 13.sp)
+        } else if (game.life.sickWeek == LifeEngine.absoluteWeek(game) + 1) {
+            Text("건강 경고 · 다음 주 감기몸살 예정 · 공부 효율 60%", color = Color(0xFFC0504D), fontSize = 13.sp)
+        }
+        game.life.lateCounts.filterValues { it > 0 }.forEach { (id, count) ->
+            Text("${subjectForId(id)?.name ?: id} · 지각 ${count}회 · 이번 시험 계산에서 -${count * LifeEngine.LATE_PENALTY}점",
+                color = Color(0xFFC0504D), fontSize = 13.sp)
+        }
+        game.love?.let { love ->
+            Text("연애 · ${love.partner} · 애정도 ${love.affection}/100 · " +
+                "데이트 취소 ${love.missedDates}/${LoveEngine.MISSED_LIMIT}",
+                fontSize = 13.sp, color = Color(0xFFD4537E))
+        }
+        game.teamProject?.let { project ->
+            Text("조별과제 · ${subjectForId(project.subjectId)?.name ?: project.subjectId} · " +
+                "${project.weeksLeft}주 남음", fontSize = 13.sp, color = Color(0xFFC0504D))
+        }
+        EventEngine.visibleBuffs(game).forEach { buff ->
+            val planned = buff.startDay > EventEngine.absoluteDay(game)
+            val label = if (planned) "예정 · ${buff.label}" else
+                "적용 중 · ${buff.label.replace("다음 주", "이번 주")}" 
+            Text(label, color = Color(0xFF2E7D52), fontSize = 13.sp)
+        }
         if (game.completedSemesters.isNotEmpty()) {
             Text(String.format(Locale.KOREA, "누적 평점 %.2f / 4.50", game.cumulativeGpa))
         }

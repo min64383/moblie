@@ -192,6 +192,8 @@ class LocalGameStore(context: Context) {
                 requireNotNull(input.readObject())
             ) ?: error("게임 상태를 복원하지 못했습니다.")
 
+            game = MiniGameEngine.refresh(game, System.currentTimeMillis())
+            game = LifeEngine.refreshMorning(game, System.currentTimeMillis())
             val schedule = unpackSlots(input.readObject())
             val selectedIds = (input.readObject() as List<*>)
                 .map { it as String }
@@ -209,6 +211,12 @@ class LocalGameStore(context: Context) {
                 require(schedule.size == 28)
                 require(game.study.keys.all { subjectForId(it) != null })
             }
+
+            EventEngine.validatePending(game)
+            TeamEngine.validateState(game, schedule)
+            LoveEngine.validateState(game, schedule)
+            MiniGameEngine.validateState(game, schedule)
+            LifeEngine.validateState(game, schedule)
 
             game.exam?.let { run ->
                 require(run.questionIds.isNotEmpty())
@@ -246,7 +254,7 @@ class LocalGameStore(context: Context) {
                 }
             }
 
-            GameSnapshot(game, schedule, selectedIds, screen)
+            GameSnapshot(game, LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, schedule)), selectedIds, screen)
         }
     }
 
