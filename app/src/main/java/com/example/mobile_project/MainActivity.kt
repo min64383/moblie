@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
@@ -558,10 +562,26 @@ private fun PooangApp(session: GameSession) {
                         subjects
                     )
 
+                    Image(
+                        painter = painterResource(R.drawable.pooang_main),
+                        contentDescription = "푸앙이",
+                        modifier = Modifier.size(160.dp),
+                        contentScale = ContentScale.Fit
+                    )
+
                     OutlinedButton(
                         onClick = { screen = "team" },
                         modifier = Modifier.fillMaxWidth()
                     ) {
+
+                        Image(
+                            painter = painterResource(R.drawable.pooang_ic_team),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        Spacer(Modifier.size(8.dp))
+
                         Text("조별과제 · 진행 및 제출 기록")
                     }
 
