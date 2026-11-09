@@ -255,7 +255,7 @@ class LifeEngineTest {
         val state = fresh().copy(hp = 100, happiness = 80, life = LifeState(sickWeek = 0))
         val study = GameEngine.advanceDay(state, plan(ActivityType.STUDY), subjects)
         assertEquals(13, study.study[ids[0]]) // round(15 * 1.2 * 1.2 * 0.6)
-        assertEquals(5, GameEngine.advanceDay(state, plan(), subjects).study[ids[0]])
+        assertEquals(GameEngine.CLASS_GAIN, GameEngine.advanceDay(state, plan(), subjects).study[ids[0]])
         assertEquals(375_000, GameEngine.advanceDay(state, plan(ActivityType.WORK), subjects).money)
     }
 

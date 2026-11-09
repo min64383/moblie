@@ -4,8 +4,10 @@ import kotlin.random.Random
 import kotlin.math.roundToInt
 
 object EventEngine {
-    const val DAY_CHANCE = 0.18
-    const val WEEKLY_LIMIT = 2
+    // 하루 18%·주 2회에서는 거의 매주 딜레마가 떠서(학기당 약 15회)
+    // 하루 10%·주 1회로 낮췄다. 평균 2주에 한 번, 학기당 약 8회.
+    const val DAY_CHANCE = 0.10
+    const val WEEKLY_LIMIT = 1
 
     fun eventForId(id: String): CampusEvent? = EventCatalog.events.find { it.id == id }
 

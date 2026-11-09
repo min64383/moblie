@@ -3,7 +3,9 @@ package com.example.mobile_project
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,9 +55,11 @@ fun GameStatusPanel(game: GameState, subjects: List<Subject>) {
         if (game.completedSemesters.isNotEmpty()) {
             Text(String.format(Locale.KOREA, "누적 평점 %.2f / 4.50", game.cumulativeGpa))
         }
-        Text("과목별 공부량", fontWeight = FontWeight.Bold)
+        // 원본 HTML처럼 누적 공부량 대신 시험 예상 점수(0~100)로 보여 준다.
+        Text("과목별 예상 점수", fontWeight = FontWeight.Bold)
         subjects.forEach { subject ->
-            Text("${subject.name}: ${game.study[subject.id] ?: 0}")
+            val study = game.study[subject.id] ?: 0
+            Text("${subject.name}: ${ExamEngine.expectedScore(study, game.semester)}점 (공부량 $study)")
         }
     }
 }
@@ -67,29 +71,68 @@ fun DayReportScreen(
     onNextDay: () -> Unit,
     onNextWeek: () -> Unit,
     onHome: () -> Unit,
-    continueLabel: String = "다음 주로"
+    continueLabel: String = "다음 주로",
+    mode: ProgressMode = ProgressMode.DAY,
+    onModeChange: (ProgressMode) -> Unit = {},
+    weekEntries: List<DayLogEntry> = emptyList()
 ) {
     val completedDay = GameEngine.dayNames[(game.day - 1).coerceIn(0, 6)]
+    val autoRunning = mode == ProgressMode.WEEK && WeekLogBook.canAutoAdvance(game)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "${game.week}주차 · $completedDay 결과",
+            text = if (mode == ProgressMode.WEEK) "${game.week}주차 · 주간 기록" else "${game.week}주차 · $completedDay 결과",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF5A3A1E)
         )
 
+        // 진행 방식 선택: 하루씩 직접 넘기기 / 한 주 자동 진행
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ProgressMode.values().forEach { option ->
+                val selected = option == mode
+                Button(
+                    onClick = { onModeChange(option) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selected) Color(0xFFFF9431) else Color(0xFFE9D8C0),
+                        contentColor = if (selected) Color.White else Color(0xFF5A3A1E)
+                    )
+                ) {
+                    Text(option.label)
+                }
+            }
+        }
+
         GameStatusPanel(game, subjects)
 
-        Text("오늘의 기록", fontWeight = FontWeight.Bold)
-        game.log.forEach { line -> Text(line, lineHeight = 22.sp) }
+        if (mode == ProgressMode.WEEK) {
+            Text("이번 주 기록", fontWeight = FontWeight.Bold)
+            weekEntries.forEach { entry ->
+                Text(entry.dayName, fontWeight = FontWeight.Bold, color = Color(0xFF5A3A1E))
+                entry.lines.forEach { line -> Text(line, lineHeight = 22.sp) }
+            }
+        } else {
+            Text("오늘의 기록", fontWeight = FontWeight.Bold)
+            game.log.forEach { line -> Text(line, lineHeight = 22.sp) }
+        }
 
         if (game.day < 7) {
-            Button(onClick = onNextDay, modifier = Modifier.fillMaxWidth()) {
-                Text("${GameEngine.dayNames[game.day.coerceIn(0, 6)]} 진행")
+            if (autoRunning) {
+                Text(
+                    "${GameEngine.dayNames[game.day.coerceIn(0, 6)]} 자동 진행 중…",
+                    color = Color(0xFF8A9099)
+                )
+            } else {
+                Button(onClick = onNextDay, modifier = Modifier.fillMaxWidth()) {
+                    Text("${GameEngine.dayNames[game.day.coerceIn(0, 6)]} 진행")
+                }
             }
         } else {
             Button(onClick = onNextWeek, modifier = Modifier.fillMaxWidth()) {

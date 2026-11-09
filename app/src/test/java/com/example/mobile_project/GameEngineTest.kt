@@ -59,7 +59,7 @@ class GameEngineTest {
             ),
             subjects
         )
-        assertEquals(15, result.study["cal"])
+        assertEquals(GameEngine.STUDY_GAIN, result.study["cal"])
         assertEquals(75, result.hp)
         assertEquals(375_000, result.money)
     }
@@ -111,7 +111,7 @@ class GameEngineTest {
             plan(TimeSlot(ActivityType.CLASS, "phy")),
             subjects
         )
-        assertEquals(5, result.study["phy"])
+        assertEquals(GameEngine.CLASS_GAIN, result.study["phy"])
         assertEquals(0, result.study["cal"])
         assertEquals(74, result.hp)
         assertEquals(58, result.happiness)
