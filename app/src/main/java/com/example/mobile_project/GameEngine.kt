@@ -3,6 +3,9 @@ package com.example.mobile_project
 import kotlin.math.roundToInt
 
 object GameEngine {
+    // 공부 1칸 기본 공부량 (효율 배율 적용 전)과 수업 1칸 공부량 (원본 HTML과 같은 값)
+    const val STUDY_GAIN = 15
+    const val CLASS_GAIN = 5
     val dayNames = listOf("월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일")
     private val blockNames = listOf("오전", "오후", "저녁", "밤")
 
@@ -100,11 +103,11 @@ object GameEngine {
                     ActivityType.STUDY -> {
                         val efficiency = coefficient(current.hp * 100.0 / current.maxHp) *
                             coefficient(current.happiness.toDouble())
-                        val base = (15 * efficiency * LifeEngine.studyMultiplier(current) * EventEngine.multiplier(current, ActivityType.STUDY) *
+                        val base = (STUDY_GAIN * efficiency * LifeEngine.studyMultiplier(current) * EventEngine.multiplier(current, ActivityType.STUDY) *
                             (mini?.studyMultiplier ?: 1.0)).roundToInt()
                         TeamEngine.adjustStudyGain(current, subject.id, base)
                     }
-                    ActivityType.CLASS -> 5
+                    ActivityType.CLASS -> CLASS_GAIN
                     else -> 0
                 }
             }

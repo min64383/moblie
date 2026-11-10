@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
@@ -78,6 +79,11 @@ private fun PooangApp(session: GameSession) {
     var game by session.gameState
 
     var askNewGame by rememberSaveable { mutableStateOf(false) }
+
+    // 결과 화면 진행 방식 (하루씩 / 한 주 자동)과 이번 주 기록
+    var progressModeName by rememberSaveable { mutableStateOf(ProgressMode.DAY.name) }
+    val progressMode = ProgressMode.fromName(progressModeName)
+    var weekLog by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
 
@@ -308,6 +314,23 @@ private fun PooangApp(session: GameSession) {
             selectedIds = emptyList()
             weekSchedule = emptyList()
             screen = "register"
+        }
+    }
+
+    // 하루가 끝날 때마다 그날 기록을 주간 기록에 모은다.
+    LaunchedEffect(game.semester, game.week, game.day, game.log) {
+        weekLog = WeekLogBook.record(weekLog, game)
+    }
+
+    // 한 주 자동: 결과 화면에서 잠시 보여 준 뒤 다음 날을 진행한다.
+    // 사건·미니게임·늦잠 등 입력이 필요한 상태가 되면 해당 화면으로 넘어가고,
+    // 그 화면을 마치고 결과 화면으로 돌아오면 다시 이어서 진행한다.
+    LaunchedEffect(screen, progressMode, game.semester, game.week, game.day) {
+        if (screen == "report" && progressMode == ProgressMode.WEEK && WeekLogBook.canAutoAdvance(game)) {
+            delay(ProgressMode.AUTO_DELAY_MS)
+            if (screen == "report" && WeekLogBook.canAutoAdvance(game)) {
+                advanceOneDay()
+            }
         }
     }
 
@@ -809,7 +832,10 @@ private fun PooangApp(session: GameSession) {
                             "학기 결산 보기"
                         } else {
                             "다음 주로"
-                        }
+                        },
+                        mode = progressMode,
+                        onModeChange = { progressModeName = it.name },
+                        weekEntries = WeekLogBook.decode(weekLog, game)
                     )
                 }
 

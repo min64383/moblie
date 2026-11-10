@@ -179,6 +179,10 @@ object ExamEngine {
 
     fun examFactor(semester: Int): Double = 0.26 - ((semester - 1) / 2) * 0.02
 
+    // 홈·결과 화면에 보여 줄 예상 점수 (시험 퀴즈 보정 전, 0~100)
+    fun expectedScore(study: Int, semester: Int): Int =
+        (study * examFactor(semester)).coerceIn(0.0, 100.0).roundToInt()
+
     fun scoreFor(study: Int, correct: Int, total: Int, semester: Int = 1, lateCount: Int = 0): Int {
         require(total > 0 && correct in 0..total && lateCount >= 0)
         val base = (study * examFactor(semester)).coerceIn(0.0, 100.0)
