@@ -241,3 +241,22 @@ fun SummaryTile(label: String, value: String, modifier: Modifier = Modifier, sub
         }
     }
 }
+
+/** 남은 시간 막대 (`.timer`): 주황→빨강, [fraction] 이 1 → 0 으로 줄어든다. */
+@Composable
+fun CountdownBar(fraction: Float, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(PooangColors.Line)
+    ) {
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .background(Brush.horizontalGradient(listOf(PooangColors.HpMid, PooangColors.Warn)))
+        )
+    }
+}

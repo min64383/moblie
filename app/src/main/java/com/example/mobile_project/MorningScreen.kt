@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mobile_project.ui.components.BigTapButton
+import com.example.mobile_project.ui.components.CountdownBar
 import com.example.mobile_project.ui.components.PooangButton
 import com.example.mobile_project.ui.components.PooangButtonStyle
 import com.example.mobile_project.ui.components.PooangCard
@@ -147,9 +149,9 @@ fun MorningScreen(
                         color = PooangColors.Warn, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
-                    TimerBar((leftMs / total).coerceIn(0f, 1f))
+                    CountdownBar(leftMs / total)
                     RunBar(progress.coerceIn(0f, 1f))
-                    TapButton { onTap(run.key, run.taps) }
+                    BigTapButton("달리기!", onClick = { onTap(run.key, run.taps) })
                     PooangButton("포기하고 결과 보기", onClick = { onSkip(run.key) },
                         modifier = Modifier.fillMaxWidth(), style = PooangButtonStyle.Ghost, small = true)
                 }
@@ -182,25 +184,6 @@ fun MorningScreen(
     }
 }
 
-/** 남은 시간 막대 (`.timer`): 주황→빨강, 시간이 지나면 줄어든다. */
-@Composable
-private fun TimerBar(fraction: Float) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(8.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(PooangColors.Line)
-    ) {
-        Box(
-            Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(fraction)
-                .background(Brush.horizontalGradient(listOf(PooangColors.HpMid, PooangColors.Warn)))
-        )
-    }
-}
-
 /** 달리기 막대 (`.runbar`): 누를수록 파란 막대가 차고 달리는 아이콘이 앞으로 간다. */
 @Composable
 private fun RunBar(fraction: Float) {
@@ -226,33 +209,6 @@ private fun RunBar(fraction: Float) {
                 .offset(x = ((maxWidth - 30.dp) * fraction) + 3.dp)
                 .size(24.dp)
         )
-    }
-}
-
-/** 큰 파란 탭 버튼 (`.tapbtn`). 연타해야 하므로 눌림 효과는 짧게. */
-@Composable
-private fun TapButton(onTap: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val shift by animateDpAsState(if (pressed) 4.dp else 0.dp, tween(40), label = "tap")
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .padding(bottom = 4.dp)
-            .clickable(interaction, indication = null, role = Role.Button, onClick = onTap)
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .offset(y = shift)
-                .hardShadow(Color(0xFF073A7C), 4.dp - shift, 17.dp)
-                .clip(RoundedCornerShape(17.dp))
-                .background(PooangColors.CauBlue)
-                .padding(vertical = 26.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("달리기!", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
-        }
     }
 }
 

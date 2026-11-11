@@ -435,9 +435,78 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
-        // 하루 진행 화면들(결과·늦잠·딜레마)도 상태 표시줄까지 꽉 채우는 전체 화면이다.
-        if (screen == "report" || screen == "morning" || screen == "event") {
+        // 하루 진행 화면들(결과·늦잠·딜레마·미니게임·시험)도 상태 표시줄까지 꽉 채우는 전체 화면이다.
+        if (screen in setOf("report", "morning", "event", "mini", "exam")) {
             when (screen) {
+                "mini" -> {
+                    MiniGameScreen(
+                        game = game,
+                        onBegin = { key -> game = MiniGameEngine.begin(game, key, System.currentTimeMillis()) },
+                        onRefresh = { key, now ->
+                            if (game.pendingMiniGame?.key == key) game = MiniGameEngine.refresh(game, now)
+                        },
+                        onInput = { key, value, revision ->
+                            game = MiniGameEngine.input(game, key, value, revision, System.currentTimeMillis())
+                        },
+                        onSubmit = { key -> game = MiniGameEngine.submitOrders(game, key, System.currentTimeMillis()) },
+                        onSkip = { key -> game = MiniGameEngine.skipOrForfeit(game, key, System.currentTimeMillis()) },
+                        onContinue = { key ->
+                            val next = DayFlowEngine.continueMini(game, weekSchedule, subjects, key)
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                screen = when {
+                                    game.life.pendingMorning != null -> "morning"
+                                    game.pendingMiniGame != null -> "mini"
+                                    game.pendingEvent != null -> "event"
+                                    else -> "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+                "exam" -> {
+                    ExamScreen(
+                        game = game,
+                        subjects = subjects,
+                        onBegin = {
+                            game = ExamEngine.beginExam(
+                                game,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onAnswer = { answer, index ->
+                            game = ExamEngine.answerQuestion(
+                                game,
+                                answer,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onTimeout = { index ->
+                            game = ExamEngine.answerQuestion(
+                                game,
+                                -1,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onNext = { index ->
+                            game = ExamEngine.nextQuestion(
+                                game,
+                                index,
+                                SystemClock.elapsedRealtime()
+                            )
+                        },
+                        onContinue = {
+                            continueAfterExam()
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
                 "report" -> {
                     DayReportScreen(
                         game = game,
@@ -714,34 +783,6 @@ private fun PooangApp(session: GameSession) {
                     )
                 }
 
-                "mini" -> {
-                    MiniGameScreen(
-                        game = game,
-                        onBegin = { key -> game = MiniGameEngine.begin(game, key, System.currentTimeMillis()) },
-                        onRefresh = { key, now ->
-                            if (game.pendingMiniGame?.key == key) game = MiniGameEngine.refresh(game, now)
-                        },
-                        onInput = { key, value, revision ->
-                            game = MiniGameEngine.input(game, key, value, revision, System.currentTimeMillis())
-                        },
-                        onSubmit = { key -> game = MiniGameEngine.submitOrders(game, key, System.currentTimeMillis()) },
-                        onSkip = { key -> game = MiniGameEngine.skipOrForfeit(game, key, System.currentTimeMillis()) },
-                        onContinue = { key ->
-                            val next = DayFlowEngine.continueMini(game, weekSchedule, subjects, key)
-                            if (next !== game) {
-                                game = next
-                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
-                                screen = when {
-                                    game.life.pendingMorning != null -> "morning"
-                                    game.pendingMiniGame != null -> "mini"
-                                    game.pendingEvent != null -> "event"
-                                    else -> "report"
-                                }
-                            }
-                        },
-                        onHome = { screen = "main" }
-                    )
-                }
 
                 "love" -> {
                     LoveScreen(
@@ -775,47 +816,6 @@ private fun PooangApp(session: GameSession) {
                 }
 
 
-                "exam" -> {
-                    ExamScreen(
-                        game = game,
-                        subjects = subjects,
-                        onBegin = {
-                            game = ExamEngine.beginExam(
-                                game,
-                                SystemClock.elapsedRealtime()
-                            )
-                        },
-                        onAnswer = { answer, index ->
-                            game = ExamEngine.answerQuestion(
-                                game,
-                                answer,
-                                index,
-                                SystemClock.elapsedRealtime()
-                            )
-                        },
-                        onTimeout = { index ->
-                            game = ExamEngine.answerQuestion(
-                                game,
-                                -1,
-                                index,
-                                SystemClock.elapsedRealtime()
-                            )
-                        },
-                        onNext = { index ->
-                            game = ExamEngine.nextQuestion(
-                                game,
-                                index,
-                                SystemClock.elapsedRealtime()
-                            )
-                        },
-                        onContinue = {
-                            continueAfterExam()
-                        },
-                        onHome = {
-                            screen = "main"
-                        }
-                    )
-                }
 
                 "semester" -> {
                     game.semesterResult?.let {

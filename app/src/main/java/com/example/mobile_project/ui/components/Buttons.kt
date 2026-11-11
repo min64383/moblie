@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -180,6 +181,44 @@ fun CircleIconButton(
             } else {
                 Text(label, color = PooangColors.TextMid, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
             }
+        }
+    }
+}
+
+/**
+ * 연타용 큰 버튼 (`.tapbtn`). 늦잠 달리기·미니게임처럼 빠르게 여러 번 누르는 곳에 쓴다.
+ * 눌림 효과를 아주 짧게(40ms) 해서 연타를 방해하지 않는다.
+ */
+@Composable
+fun BigTapButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = PooangColors.CauBlue,
+    shadow: Color = Color(0xFF073A7C),
+    enabled: Boolean = true
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shift by animateDpAsState(if (pressed && enabled) 4.dp else 0.dp, tween(40), label = "tap")
+    Box(
+        modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.38f)
+            .padding(bottom = 4.dp)
+            .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .offset(y = shift)
+                .hardShadow(shadow, 4.dp - shift, 17.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(color)
+                .padding(vertical = 26.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
