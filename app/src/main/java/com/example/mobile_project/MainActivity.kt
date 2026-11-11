@@ -7,44 +7,27 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
+import com.example.mobile_project.ui.components.screenEnter
+import com.example.mobile_project.ui.theme.PooangColors
 import com.example.mobile_project.ui.theme.PooangTheme
 
 class MainActivity : ComponentActivity() {
@@ -110,28 +93,6 @@ private fun PooangApp(session: GameSession) {
 
     val availableSubjects = subjectsForSemester(game.semester)
     val subjects = game.study.keys.mapNotNull { subjectForId(it) }
-    val scrollState = rememberScrollState()
-
-    LaunchedEffect(
-        screen,
-        game.semester,
-        game.week,
-        game.day,
-        game.exam?.index,
-        game.exam?.phase,
-        game.pendingEvent?.key,
-        game.pendingEvent?.phase,
-        game.life.pendingMorning?.key,
-        game.life.pendingMorning?.phase,
-        game.pendingMiniGame?.key,
-        game.pendingMiniGame?.phase,
-        game.pendingConfession?.key,
-        game.pendingConfession?.choice,
-        game.teamProject?.key,
-        game.teamProject?.announced
-    ) {
-        scrollState.scrollTo(0)
-    }
 
     LaunchedEffect(game.semester, game.needsRegistration) {
         if (game.needsRegistration) {
@@ -411,8 +372,10 @@ private fun PooangApp(session: GameSession) {
     }
 
     Scaffold(
-        containerColor = Color(0xFFFFF4E4)
+        containerColor = PooangColors.Panel
     ) { innerPadding ->
+        // 화면이 바뀔 때마다 살짝 아래에서 떠오르며 나타난다 (프로토타입의 scIn 효과).
+        Box(Modifier.fillMaxSize().screenEnter(screen)) {
         // 타이틀은 상태 표시줄 아래까지 꽉 채우는 화면이라 공통 여백 없이 따로 그린다.
         if (screen == "title") {
             TitleScreen(
@@ -841,46 +804,13 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(scrollState)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
-
-            Text(
-                text = session.saveStatus,
-                fontSize = 12.sp,
-                color = Color(0xFF8A6A48)
-            )
-
-            when (screen) {
-                "account" -> {
-                    AccountScreen(session = session, onBack = {
-                        session.cancelCloudPreview()
-                        screen = if (session.hasGame) "main" else "title"
-                    })
-                }
-
-
-
-
-
-
-
-
-
-
-
-
-
-            }
+        // 계정 · 클라우드 저장
+        if (screen == "account") {
+            AccountScreen(session = session, onBack = {
+                session.cancelCloudPreview()
+                screen = if (session.hasGame) "main" else "title"
+            })
         }
+        } // Box (screenEnter)
     }
 }

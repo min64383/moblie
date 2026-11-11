@@ -1,5 +1,6 @@
 package com.example.mobile_project.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
@@ -7,7 +8,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
@@ -80,4 +83,17 @@ fun Modifier.twinkle(min: Float = 0.18f, max: Float = 0.75f, periodMs: Int = 300
         label = "twinkleAlpha"
     )
     graphicsLayer { alpha = a }
+}
+
+/**
+ * 화면이 바뀔 때 나타나는 효과 (`@keyframes scIn`): 투명·8dp 아래 → 제자리로 0.26초.
+ * [key] 가 바뀔 때마다 다시 재생된다.
+ */
+fun Modifier.screenEnter(key: Any): Modifier = composed {
+    val progress = remember(key) { Animatable(0f) }
+    LaunchedEffect(key) { progress.animateTo(1f, tween(260)) }
+    graphicsLayer {
+        alpha = progress.value
+        translationY = (1f - progress.value) * 8.dp.toPx()
+    }
 }
