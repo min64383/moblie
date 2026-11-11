@@ -413,6 +413,28 @@ private fun PooangApp(session: GameSession) {
     Scaffold(
         containerColor = Color(0xFFFFF4E4)
     ) { innerPadding ->
+        // 타이틀은 상태 표시줄 아래까지 꽉 채우는 화면이라 공통 여백 없이 따로 그린다.
+        if (screen == "title") {
+            TitleScreen(
+                hasGame = session.hasGame,
+                game = game,
+                saveStatus = session.saveStatus,
+                loadError = session.loadError,
+                onContinue = { session.resumeGame() },
+                onNewGame = {
+                    if (session.hasGame || session.loadError != null) {
+                        askNewGame = true
+                    } else {
+                        session.startNewGame()
+                    }
+                },
+                onAccount = { screen = "account" },
+                onRetryLoad = { session.retryLoad() },
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+            )
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -438,97 +460,6 @@ private fun PooangApp(session: GameSession) {
                         session.cancelCloudPreview()
                         screen = if (session.hasGame) "main" else "title"
                     })
-                }
-
-                "title" -> {
-                    Text(
-                        text = "푸앙이\n대학생활",
-                        fontSize = 36.sp,
-                        lineHeight = 44.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        textAlign = TextAlign.Center,
-                        color = Color(0xFF5A3A1E)
-                    )
-
-                    Text(
-                        text = "입학부터 졸업까지, 4년을 설계하세요",
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        color = Color(0xFF8A6A48)
-                    )
-
-                    Text(
-                        text = "4년 · 8학기 · 128주",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFB5651D)
-                    )
-
-                    Text(
-                        text = "수업과 공부, 알바와 휴식을 조절하며\n" +
-                                "푸앙이의 대학생활을 설계해 보세요.",
-                        textAlign = TextAlign.Center,
-                        fontSize = 15.sp,
-                        lineHeight = 24.sp
-                    )
-
-                    if (session.hasGame) {
-                        OutlinedButton(
-                            onClick = {
-                                session.resumeGame()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("계속하기")
-                        }
-                    }
-
-                    OutlinedButton(onClick = { screen = "account" }, modifier = Modifier.fillMaxWidth()) {
-                        Text("계정 · 클라우드 저장")
-                    }
-
-                    session.loadError?.let { error ->
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-
-                        OutlinedButton(
-                            onClick = {
-                                session.retryLoad()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("저장 데이터 다시 불러오기")
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (
-                                session.hasGame ||
-                                session.loadError != null
-                            ) {
-                                askNewGame = true
-                            } else {
-                                session.startNewGame()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9431),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text(
-                            text = "입학하기",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
 
                 "register" -> {
