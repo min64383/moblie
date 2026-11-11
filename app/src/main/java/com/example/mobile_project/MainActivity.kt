@@ -435,6 +435,94 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
+        // 하루 진행 화면들(결과·늦잠·딜레마)도 상태 표시줄까지 꽉 채우는 전체 화면이다.
+        if (screen == "report" || screen == "morning" || screen == "event") {
+            when (screen) {
+                "report" -> {
+                    DayReportScreen(
+                        game = game,
+                        subjects = subjects,
+                        onNextDay = {
+                            if (game.day < 7) {
+                                advanceOneDay()
+                            }
+                        },
+                        onNextWeek = {
+                            continueAfterWeek()
+                        },
+                        onHome = {
+                            screen = "main"
+                        },
+                        continueLabel = ExamEngine.pendingExam(game)?.let {
+                            "${it.title} 보러가기"
+                        } ?: if (game.week >= 16) {
+                            "학기 결산 보기"
+                        } else {
+                            "다음 주로"
+                        },
+                        mode = progressMode,
+                        onModeChange = { progressModeName = it.name },
+                        weekEntries = WeekLogBook.decode(weekLog, game),
+                        schedule = weekSchedule
+                    )
+                }
+
+                "morning" -> {
+                    MorningScreen(
+                        game = game,
+                        onBegin = { key -> game = LifeEngine.beginMorning(game, key, System.currentTimeMillis()) },
+                        onTap = { key, taps -> game = LifeEngine.tapMorning(game, key, taps, System.currentTimeMillis()) },
+                        onRefresh = { key, now ->
+                            if (game.life.pendingMorning?.key == key) game = LifeEngine.refreshMorning(game, now)
+                        },
+                        onSkip = { key -> game = LifeEngine.skipMorning(game, key, System.currentTimeMillis()) },
+                        onContinue = { key ->
+                            val next = LifeEngine.continueMorning(game, weekSchedule, subjects, key)
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                screen = when {
+                                    game.life.pendingMorning != null -> "morning"
+                                    game.pendingMiniGame != null -> "mini"
+                                    game.pendingEvent != null -> "event"
+                                    else -> "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+
+                "event" -> {
+                    EventScreen(
+                        game = game,
+                        subjects = subjects,
+                        onChoose = { key, index ->
+                            game = EventEngine.choose(game, key, index)
+                            weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                        },
+                        onContinue = { key ->
+                            val run = game.pendingEvent
+                            val next = EventEngine.continueEvent(
+                                game, weekSchedule, subjects, key
+                            )
+                            if (next !== game) {
+                                game = next
+                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
+                                if (run?.day == 7) {
+                                    continueAfterWeek()
+                                } else {
+                                    screen = "report"
+                                }
+                            }
+                        },
+                        onHome = { screen = "main" }
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
         // 수강신청·시간표·루틴은 머리 줄과 아래 고정 버튼이 있는 전체 화면 패널이다.
         if (screen == "register" || screen == "schedule" || screen == "routines") {
             when (screen) {
@@ -616,59 +704,7 @@ private fun PooangApp(session: GameSession) {
                     })
                 }
 
-                "report" -> {
-                    DayReportScreen(
-                        game = game,
-                        subjects = subjects,
-                        onNextDay = {
-                            if (game.day < 7) {
-                                advanceOneDay()
-                            }
-                        },
-                        onNextWeek = {
-                            continueAfterWeek()
-                        },
-                        onHome = {
-                            screen = "main"
-                        },
-                        continueLabel = ExamEngine.pendingExam(game)?.let {
-                            "${it.title} 보러가기"
-                        } ?: if (game.week >= 16) {
-                            "학기 결산 보기"
-                        } else {
-                            "다음 주로"
-                        },
-                        mode = progressMode,
-                        onModeChange = { progressModeName = it.name },
-                        weekEntries = WeekLogBook.decode(weekLog, game)
-                    )
-                }
 
-                "morning" -> {
-                    MorningScreen(
-                        game = game,
-                        onBegin = { key -> game = LifeEngine.beginMorning(game, key, System.currentTimeMillis()) },
-                        onTap = { key, taps -> game = LifeEngine.tapMorning(game, key, taps, System.currentTimeMillis()) },
-                        onRefresh = { key, now ->
-                            if (game.life.pendingMorning?.key == key) game = LifeEngine.refreshMorning(game, now)
-                        },
-                        onSkip = { key -> game = LifeEngine.skipMorning(game, key, System.currentTimeMillis()) },
-                        onContinue = { key ->
-                            val next = LifeEngine.continueMorning(game, weekSchedule, subjects, key)
-                            if (next !== game) {
-                                game = next
-                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
-                                screen = when {
-                                    game.life.pendingMorning != null -> "morning"
-                                    game.pendingMiniGame != null -> "mini"
-                                    game.pendingEvent != null -> "event"
-                                    else -> "report"
-                                }
-                            }
-                        },
-                        onHome = { screen = "main" }
-                    )
-                }
 
                 "life" -> {
                     LifeScreen(
@@ -738,32 +774,6 @@ private fun PooangApp(session: GameSession) {
                     )
                 }
 
-                "event" -> {
-                    EventScreen(
-                        game = game,
-                        subjects = subjects,
-                        onChoose = { key, index ->
-                            game = EventEngine.choose(game, key, index)
-                            weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
-                        },
-                        onContinue = { key ->
-                            val run = game.pendingEvent
-                            val next = EventEngine.continueEvent(
-                                game, weekSchedule, subjects, key
-                            )
-                            if (next !== game) {
-                                game = next
-                                weekSchedule = LoveEngine.syncSchedule(game, TeamEngine.syncSchedule(game, weekSchedule))
-                                if (run?.day == 7) {
-                                    continueAfterWeek()
-                                } else {
-                                    screen = "report"
-                                }
-                            }
-                        },
-                        onHome = { screen = "main" }
-                    )
-                }
 
                 "exam" -> {
                     ExamScreen(
