@@ -435,6 +435,40 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
+        // 홈은 HUD·무대·아래 내비게이션이 화면 전체를 쓰므로 공통 여백 없이 따로 그린다.
+        if (screen == "main") {
+            HomeScreen(
+                game = game,
+                schedule = weekSchedule,
+                saveStatus = session.saveStatus,
+                actions = HomeActions(
+                    onSchedule = {
+                        if (HomeModel.canPlan(game)) {
+                            if (weekSchedule.size != 28) {
+                                weekSchedule = createWeekSchedule(game.study.keys.toList())
+                            }
+                            if (!prepareWeekSystems()) screen = "schedule"
+                        }
+                    },
+                    onProgress = { showReport() },
+                    onGrades = { screen = "grades" },
+                    onLife = { screen = "life" },
+                    onTeam = { screen = "team" },
+                    onLove = { screen = "love" },
+                    onRoutines = { screen = "routines" },
+                    onSave = { session.saveNow() },
+                    onAccount = { screen = "account" },
+                    onTitle = { screen = "title" },
+                    onToggleMiniGames = {
+                        if (game.pendingMiniGame == null && game.life.pendingMorning == null) {
+                            game = game.copy(skipMiniGames = !game.skipMiniGames)
+                        }
+                    }
+                )
+            )
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -501,177 +535,6 @@ private fun PooangApp(session: GameSession) {
                             screen = "title"
                         }
                     )
-                }
-
-                "main" -> {
-                    Text(
-                        text = "${semesterLabel(game.semester)} · " +
-                                "${game.week}주차",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF5A3A1E)
-                    )
-
-                    GameStatusPanel(
-                        game,
-                        subjects
-                    )
-
-                    Image(
-                        painter = painterResource(R.drawable.pooang_main),
-                        contentDescription = "푸앙이",
-                        modifier = Modifier.size(160.dp),
-                        contentScale = ContentScale.Fit
-                    )
-
-                    OutlinedButton(
-                        onClick = { screen = "team" },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        Image(
-                            painter = painterResource(R.drawable.pooang_ic_team),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-
-                        Spacer(Modifier.size(8.dp))
-
-                        Text("조별과제 · 진행 및 제출 기록")
-                    }
-
-                    OutlinedButton(onClick = { screen = "love" }, modifier = Modifier.fillMaxWidth()) {
-                        Text("연애 · 상태 및 기록")
-                    }
-
-                    OutlinedButton(
-                        onClick = { game = game.copy(skipMiniGames = !game.skipMiniGames) },
-                        enabled = game.pendingMiniGame == null && game.life.pendingMorning == null,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (game.skipMiniGames) "미니게임: 꺼짐" else "미니게임: 켜짐")
-                    }
-
-                    if (game.skipMiniGames) Text("늦잠은 성공 확률 50%로 자동 판정해요.", fontSize = 13.sp)
-
-                    OutlinedButton(onClick = { screen = "life" }, modifier = Modifier.fillMaxWidth()) {
-                        Text("생활 · 건강과 주간 복권")
-                    }
-
-                    OutlinedButton(onClick = { screen = "account" }, modifier = Modifier.fillMaxWidth()) {
-                        Text("계정 · 클라우드 저장")
-                    }
-
-                    if (game.semesterResult != null) {
-                        Text(
-                            "이번 학기가 끝났어요. 학기 성적을 확인해 보세요."
-                        )
-                    } else if (game.day in 1..6) {
-                        Text(
-                            "${GameEngine.dayNames[game.day - 1]}" +
-                                    "까지 진행했어요."
-                        )
-                    } else if (game.day == 7) {
-                        Text(
-                            "이번 주가 끝났어요. 진행 결과를 확인해 주세요."
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            if (game.day == 0 && game.pendingEvent == null && game.pendingConfession == null && game.pendingMiniGame == null && game.miniBonus == null &&
-                                    game.life.pendingMorning == null && game.life.morningNotice == null) {
-                                if (weekSchedule.size != 28) {
-                                    weekSchedule = createWeekSchedule(
-                                        game.study.keys.toList()
-                                    )
-                                }
-
-                                if (!prepareWeekSystems()) screen = "schedule"
-                            }
-                        },
-                        enabled = game.day == 0 && game.pendingEvent == null && game.pendingConfession == null && game.pendingMiniGame == null && game.miniBonus == null &&
-                                    game.life.pendingMorning == null && game.life.morningNotice == null,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("주간 시간표")
-                    }
-
-                    Button(
-                        onClick = {
-                            showReport()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            when {
-                                game.pendingConfession != null -> {
-                                    "고백 이벤트 이어하기"
-                                }
-
-                                game.life.pendingMorning?.phase == MorningPhase.RESULT -> "늦잠 결과 보기"
-                                game.life.pendingMorning != null -> "늦잠 달리기 이어하기"
-
-                                game.pendingMiniGame?.phase == MiniPhase.RESULT -> "미니게임 결과 보기"
-                                game.pendingMiniGame != null -> "미니게임 이어하기"
-
-                                game.pendingEvent?.phase == EventPhase.RESULT -> {
-                                    "이벤트 결과 보기"
-                                }
-
-                                game.pendingEvent != null -> {
-                                    "이벤트 이어하기"
-                                }
-
-                                game.semesterResult != null -> {
-                                    "학기 성적 보기"
-                                }
-
-                                game.exam?.phase == ExamPhase.RESULT -> {
-                                    "시험 결과 보기"
-                                }
-
-                                game.exam != null -> {
-                                    "시험 이어하기"
-                                }
-
-                                game.day == 0 -> {
-                                    "시간 보내기"
-                                }
-
-                                else -> {
-                                    "진행 결과 보기"
-                                }
-                            }
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            screen = "grades"
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("성적 기록")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            screen = "routines"
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("루틴 관리")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            session.saveNow()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("지금 저장")
-                    }
                 }
 
                 "schedule" -> {
