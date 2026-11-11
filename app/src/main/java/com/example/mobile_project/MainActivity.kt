@@ -435,6 +435,65 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
+        // 학기 결산·성적 기록·방학·졸업 엔딩도 전체 화면이다.
+        if (screen in setOf("semester", "grades", "vacation", "graduation")) {
+            when (screen) {
+                "semester" -> {
+                    game.semesterResult?.let {
+                        SemesterSummaryScreen(
+                            game,
+                            subjects,
+                            onContinue = {
+                                continueAfterSemester()
+                            },
+                            onHome = {
+                                screen = "main"
+                            }
+                        )
+                    }
+                }
+                "grades" -> {
+                    GradeRecordScreen(
+                        game,
+                        subjects,
+                        onBack = {
+                            screen = "main"
+                        }
+                    )
+                }
+                "vacation" -> {
+                    VacationScreen(
+                        game,
+                        subjects,
+                        onChoose = { id ->
+                            game = AcademicEngine.applyVacation(
+                                game,
+                                id
+                            )
+                        },
+                        onAdvance = {
+                            advanceSemester()
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
+                "graduation" -> {
+                    GraduationScreen(
+                        game,
+                        onTitle = {
+                            screen = "title"
+                        },
+                        onHome = {
+                            screen = "main"
+                        }
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
         // 하루 진행 화면들(결과·늦잠·딜레마·미니게임·시험)도 상태 표시줄까지 꽉 채우는 전체 화면이다.
         if (screen in setOf("report", "morning", "event", "mini", "exam")) {
             when (screen) {
@@ -817,62 +876,10 @@ private fun PooangApp(session: GameSession) {
 
 
 
-                "semester" -> {
-                    game.semesterResult?.let {
-                        SemesterSummaryScreen(
-                            game,
-                            subjects,
-                            onContinue = {
-                                continueAfterSemester()
-                            },
-                            onHome = {
-                                screen = "main"
-                            }
-                        )
-                    }
-                }
-
-                "grades" -> {
-                    GradeRecordScreen(
-                        game,
-                        subjects,
-                        onBack = {
-                            screen = "main"
-                        }
-                    )
-                }
 
 
-                "vacation" -> {
-                    VacationScreen(
-                        game,
-                        subjects,
-                        onChoose = { id ->
-                            game = AcademicEngine.applyVacation(
-                                game,
-                                id
-                            )
-                        },
-                        onAdvance = {
-                            advanceSemester()
-                        },
-                        onHome = {
-                            screen = "main"
-                        }
-                    )
-                }
 
-                "graduation" -> {
-                    GraduationScreen(
-                        game,
-                        onTitle = {
-                            screen = "title"
-                        },
-                        onHome = {
-                            screen = "main"
-                        }
-                    )
-                }
+
             }
         }
     }
