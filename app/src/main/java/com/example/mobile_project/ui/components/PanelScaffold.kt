@@ -33,6 +33,7 @@ fun PanelScaffold(
     @DrawableRes icon: Int? = null,
     iconTint: Color = PooangColors.StatIcon,
     caption: String? = null,
+    closable: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -43,7 +44,8 @@ fun PanelScaffold(
             icon = icon,
             iconTint = iconTint,
             caption = caption,
-            insetStatusBar = true
+            insetStatusBar = true,
+            closable = closable
         )
         Column(
             Modifier

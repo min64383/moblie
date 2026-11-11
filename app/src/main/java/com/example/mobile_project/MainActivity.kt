@@ -592,9 +592,45 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
-        // 수강신청·시간표·루틴은 머리 줄과 아래 고정 버튼이 있는 전체 화면 패널이다.
-        if (screen == "register" || screen == "schedule" || screen == "routines") {
+        // 수강신청·시간표·루틴·조별과제·연애·생활은 머리 줄이 있는 전체 화면 패널이다.
+        if (screen in setOf("register", "schedule", "routines", "team", "love", "life")) {
             when (screen) {
+                "team" -> {
+                    TeamScreen(
+                        game = game,
+                        onConfirm = { key ->
+                            game = TeamEngine.acknowledge(game, key)
+                            screen = "schedule"
+                        },
+                        onBack = { leaveTeamScreen() }
+                    )
+                }
+                "love" -> {
+                    LoveScreen(
+                        game = game,
+                        schedule = weekSchedule,
+                        onChoose = { key, accept ->
+                            val chosen = LoveEngine.chooseConfession(game, weekSchedule, key, accept)
+                            game = chosen.game
+                            weekSchedule = chosen.schedule
+                        },
+                        onContinue = { key ->
+                            val next = LoveEngine.completeConfession(game, key)
+                            if (next !== game) {
+                                game = next
+                                screen = "main"
+                            }
+                        },
+                        onBack = { screen = "main" }
+                    )
+                }
+                "life" -> {
+                    LifeScreen(
+                        game = game,
+                        onBuy = { semester, week -> game = LifeEngine.buyLottery(game, semester, week) },
+                        onBack = { screen = "main" }
+                    )
+                }
                 "register" -> {
                     CourseRegistrationScreen(
                         selectedIds = selectedIds,
@@ -775,45 +811,9 @@ private fun PooangApp(session: GameSession) {
 
 
 
-                "life" -> {
-                    LifeScreen(
-                        game = game,
-                        onBuy = { semester, week -> game = LifeEngine.buyLottery(game, semester, week) },
-                        onBack = { screen = "main" }
-                    )
-                }
 
 
-                "love" -> {
-                    LoveScreen(
-                        game = game,
-                        schedule = weekSchedule,
-                        onChoose = { key, accept ->
-                            val chosen = LoveEngine.chooseConfession(game, weekSchedule, key, accept)
-                            game = chosen.game
-                            weekSchedule = chosen.schedule
-                        },
-                        onContinue = { key ->
-                            val next = LoveEngine.completeConfession(game, key)
-                            if (next !== game) {
-                                game = next
-                                screen = "main"
-                            }
-                        },
-                        onBack = { screen = "main" }
-                    )
-                }
 
-                "team" -> {
-                    TeamScreen(
-                        game = game,
-                        onConfirm = { key ->
-                            game = TeamEngine.acknowledge(game, key)
-                            screen = "schedule"
-                        },
-                        onBack = { leaveTeamScreen() }
-                    )
-                }
 
 
 

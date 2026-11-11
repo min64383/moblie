@@ -63,7 +63,9 @@ fun PooangCard(
 ) {
     val shape = RoundedCornerShape(18.dp)
     Column(
+        // 카드는 기본으로 가로를 꽉 채운다 (글자가 짧아도 폭이 줄어들지 않게).
         modifier = modifier
+            .fillMaxWidth()
             .padding(bottom = 3.dp)
             .hardShadow(borderColor, 3.dp, 18.dp)
             .clip(shape)
@@ -236,7 +238,8 @@ fun PanelHeader(
     @DrawableRes icon: Int? = null,
     iconTint: Color = PooangColors.StatIcon,
     caption: String? = null,
-    insetStatusBar: Boolean = false
+    insetStatusBar: Boolean = false,
+    closable: Boolean = true
 ) {
     Row(
         modifier = modifier
@@ -264,6 +267,6 @@ fun PanelHeader(
         if (caption != null) {
             Text(caption, color = PooangColors.TextSub, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
         }
-        CircleIconButton(onClick = onClose, contentDescription = "닫기", label = "×")
+        if (closable) CircleIconButton(onClick = onClose, contentDescription = "닫기", label = "×")
     }
 }
