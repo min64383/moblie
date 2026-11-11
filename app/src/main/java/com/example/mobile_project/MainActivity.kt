@@ -45,6 +45,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
+import com.example.mobile_project.ui.theme.PooangTheme
 
 class MainActivity : ComponentActivity() {
     private val gameSession: GameSession by lazy {
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MaterialTheme {
+            PooangTheme {
                 PooangApp(gameSession)
             }
         }
