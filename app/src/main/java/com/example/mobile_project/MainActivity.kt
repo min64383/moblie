@@ -435,67 +435,9 @@ private fun PooangApp(session: GameSession) {
             return@Scaffold
         }
 
-        // 홈은 HUD·무대·아래 내비게이션이 화면 전체를 쓰므로 공통 여백 없이 따로 그린다.
-        if (screen == "main") {
-            HomeScreen(
-                game = game,
-                schedule = weekSchedule,
-                saveStatus = session.saveStatus,
-                actions = HomeActions(
-                    onSchedule = {
-                        if (HomeModel.canPlan(game)) {
-                            if (weekSchedule.size != 28) {
-                                weekSchedule = createWeekSchedule(game.study.keys.toList())
-                            }
-                            if (!prepareWeekSystems()) screen = "schedule"
-                        }
-                    },
-                    onProgress = { showReport() },
-                    onGrades = { screen = "grades" },
-                    onLife = { screen = "life" },
-                    onTeam = { screen = "team" },
-                    onLove = { screen = "love" },
-                    onRoutines = { screen = "routines" },
-                    onSave = { session.saveNow() },
-                    onAccount = { screen = "account" },
-                    onTitle = { screen = "title" },
-                    onToggleMiniGames = {
-                        if (game.pendingMiniGame == null && game.life.pendingMorning == null) {
-                            game = game.copy(skipMiniGames = !game.skipMiniGames)
-                        }
-                    }
-                )
-            )
-            return@Scaffold
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(scrollState)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
-
-            Text(
-                text = session.saveStatus,
-                fontSize = 12.sp,
-                color = Color(0xFF8A6A48)
-            )
-
+        // 수강신청·시간표·루틴은 머리 줄과 아래 고정 버튼이 있는 전체 화면 패널이다.
+        if (screen == "register" || screen == "schedule" || screen == "routines") {
             when (screen) {
-                "account" -> {
-                    AccountScreen(session = session, onBack = {
-                        session.cancelCloudPreview()
-                        screen = if (session.hasGame) "main" else "title"
-                    })
-                }
-
                 "register" -> {
                     CourseRegistrationScreen(
                         selectedIds = selectedIds,
@@ -596,14 +538,82 @@ private fun PooangApp(session: GameSession) {
                             }
                         )
                     } else {
-                        Button(
-                            onClick = {
-                                screen = "main"
+                        // 한 주 진행 중 등 시간표를 바꿀 수 없는 상태면 홈으로 돌려보낸다.
+                        LaunchedEffect(Unit) { screen = "main" }
+                    }
+                }
+
+                "routines" -> {
+                    RoutineScreen(
+                        session = session,
+                        onBack = {
+                            screen = "main"
+                        }
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
+        // 홈은 HUD·무대·아래 내비게이션이 화면 전체를 쓰므로 공통 여백 없이 따로 그린다.
+        if (screen == "main") {
+            HomeScreen(
+                game = game,
+                schedule = weekSchedule,
+                saveStatus = session.saveStatus,
+                actions = HomeActions(
+                    onSchedule = {
+                        if (HomeModel.canPlan(game)) {
+                            if (weekSchedule.size != 28) {
+                                weekSchedule = createWeekSchedule(game.study.keys.toList())
                             }
-                        ) {
-                            Text("홈으로")
+                            if (!prepareWeekSystems()) screen = "schedule"
+                        }
+                    },
+                    onProgress = { showReport() },
+                    onGrades = { screen = "grades" },
+                    onLife = { screen = "life" },
+                    onTeam = { screen = "team" },
+                    onLove = { screen = "love" },
+                    onRoutines = { screen = "routines" },
+                    onSave = { session.saveNow() },
+                    onAccount = { screen = "account" },
+                    onTitle = { screen = "title" },
+                    onToggleMiniGames = {
+                        if (game.pendingMiniGame == null && game.life.pendingMorning == null) {
+                            game = game.copy(skipMiniGames = !game.skipMiniGames)
                         }
                     }
+                )
+            )
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Spacer(
+                modifier = Modifier.height(24.dp)
+            )
+
+            Text(
+                text = session.saveStatus,
+                fontSize = 12.sp,
+                color = Color(0xFF8A6A48)
+            )
+
+            when (screen) {
+                "account" -> {
+                    AccountScreen(session = session, onBack = {
+                        session.cancelCloudPreview()
+                        screen = if (session.hasGame) "main" else "title"
+                    })
                 }
 
                 "report" -> {
@@ -822,14 +832,6 @@ private fun PooangApp(session: GameSession) {
                     )
                 }
 
-                "routines" -> {
-                    RoutineScreen(
-                        session = session,
-                        onBack = {
-                            screen = "main"
-                        }
-                    )
-                }
 
                 "vacation" -> {
                     VacationScreen(

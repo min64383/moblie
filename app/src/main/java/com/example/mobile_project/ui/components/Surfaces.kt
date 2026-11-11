@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -234,7 +235,8 @@ fun PanelHeader(
     modifier: Modifier = Modifier,
     @DrawableRes icon: Int? = null,
     iconTint: Color = PooangColors.StatIcon,
-    caption: String? = null
+    caption: String? = null,
+    insetStatusBar: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -244,6 +246,7 @@ fun PanelHeader(
                 val h = 3.dp.toPx()
                 drawRect(PooangColors.Accent, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
             }
+            .then(if (insetStatusBar) Modifier.statusBarsPadding() else Modifier)
             .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)

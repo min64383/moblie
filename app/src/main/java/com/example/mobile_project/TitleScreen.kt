@@ -269,7 +269,7 @@ private fun AboutCard() {
         Text(
             text = buildAnnotatedString {
                 withStyle(bold) { append("8학기, 128주") }
-                append("를 직접 설계합니다. 학기마다 3과목을 수강신청하고, 매주 시간표에 공부·알바·휴식을 배치하세요.\n\n")
+                append("를 직접 설계합니다. 학기마다 3과목을 수강신청하고, 매주 28칸 시간표에 할 일을 칠하세요. 손가락으로 끌면 여러 칸이 한 번에 칠해져요.\n\n")
                 append("체력이 떨어지면 공부 효율이 떨어지고 ")
                 withStyle(bold) { append("늦잠") }
                 append("을 잡습니다. 학기마다 중간·기말고사가 있고, ")
@@ -279,7 +279,11 @@ private fun AboutCard() {
                 withStyle(bold) { append("방학") }
                 append("에는 알바·인턴·어학연수 중 하나를 고릅니다. 조건을 채우면 ")
                 withStyle(bold) { append("연애") }
-                append("도 시작할 수 있고, 주 1회 ")
+                append("도 시작할 수 있어요. 3학년부터 ")
+                withStyle(bold) { append("취업 준비") }
+                append(", 누적 평점 3.0을 넘으면 ")
+                withStyle(bold) { append("과외") }
+                append("가 열리고, 주 1회 ")
                 withStyle(bold) { append("복권") }
                 append("도 살 수 있습니다.\n\n")
                 append("졸업 시 누적 평점·스펙·인맥·자산으로 ")
