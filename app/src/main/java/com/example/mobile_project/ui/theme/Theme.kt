@@ -1,57 +1,35 @@
 package com.example.mobile_project.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+// 게임 화면은 항상 밝은 크림 테마를 쓴다. (기기 다크 모드·배경화면 색 무시)
+private val PooangColorScheme = lightColorScheme(
+    primary = PooangColors.OrangeBottom,
     onPrimary = Color.White,
+    primaryContainer = PooangColors.HudBottom,
+    onPrimaryContainer = PooangColors.Text,
+    secondary = PooangColors.GhostText,
     onSecondary = Color.White,
+    tertiary = PooangColors.PinkBottom,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = PooangColors.Panel,
+    onBackground = PooangColors.Text,
+    surface = PooangColors.Card,
+    onSurface = PooangColors.Text,
+    surfaceVariant = PooangColors.Track,
+    onSurfaceVariant = PooangColors.TextSub,
+    outline = PooangColors.Line,
+    error = PooangColors.Warn,
+    onError = Color.White
 )
 
 @Composable
-fun Mobile_projectTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun PooangTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = PooangColorScheme,
         typography = Typography,
         content = content
     )
